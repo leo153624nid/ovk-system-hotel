@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: Audit API
+  version: 1.0.0
+  description: Журнал изменений записей гостей. Наполняется из событий NATS, только чтение. Доступен через gateway.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /api/audit:
+    get:
+      operationId: listAudit
+      summary: Журнал изменений
+      description: Сортировка по времени события, новые первыми.
+      parameters:
+        - name: entity_id
+          in: query
+          description: Только события по этой записи гостя.
+          schema: { type: string, format: uuid }
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница журнала.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditPage' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: 'common.yaml#/components/securitySchemes/bearerAuth'
+  schemas:
+    AuditEntry:
+      type: object
+      required: [id, event_id, action, entity_id, actor_id, payload, occurred_at]
+      properties:
+        id: { type: integer, format: int64 }
+        event_id: { type: string, format: uuid }
+        action: { type: string, enum: [created, updated, deleted] }
+        entity_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        payload:
+          type: object
+          description: Снимок записи гостя на момент события (для `deleted` последнее состояние).
+        occurred_at: { type: string, format: date-time }
+    AuditPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditEntry' }
+        next_cursor:
+          type: [string, 'null']

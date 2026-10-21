@@ -1,0 +1,83 @@
+openapi: 3.1.0
+info:
+  title: Общие компоненты
+  version: 1.0.0
+  description: Схемы и ответы, на которые ссылаются спецификации сервисов. Самостоятельного API не описывает.
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access JWT (HS256), выдаётся auth. Передаётся как `Authorization Bearer <token>`.
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Непрозрачный курсор из `next_cursor` предыдущего ответа.
+      schema: { type: string, maxLength: 512 }
+
+  schemas:
+    Problem:
+      type: object
+      description: Ошибка в формате RFC 7807 (`application/problem+json`).
+      required: [type, title, status, request_id]
+      properties:
+        type:
+          type: string
+          description: Стабильный код ошибки.
+          examples: [validation_failed]
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        request_id: { type: string }
+        errors:
+          type: array
+          description: Заполняется для 422.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string, examples: [check_out] }
+              message: { type: string }
+
+  responses:
+    BadRequest:
+      description: Некорректный JSON или параметры запроса.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Токен отсутствует, просрочен или недействителен.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Ресурс не найден.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationFailed:
+      description: Данные не прошли валидацию.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Превышен лимит запросов.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InternalError:
+      description: Внутренняя ошибка. Детали наружу не передаются, по `request_id` ищите запись в логах.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

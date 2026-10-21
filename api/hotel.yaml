@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: Hotel API
+  version: 1.0.0
+  description: |
+    Записная книжка гостей. Книга общая: все авторизованные пользователи видят и меняют одни и те же записи.
+    Все маршруты требуют access-токен. Доступен через gateway, пути не переписываются.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: guests
+paths:
+  /api/guests:
+    get:
+      tags: [guests]
+      operationId: listGuests
+      summary: Список гостей с поиском
+      description: |
+        Сортировка по времени создания, новые первыми.
+        Поиск `q` нечувствителен к регистру и ищет подстроку в ФИО, телефоне и номере.
+        Символы `%`, `_` и `\` в `q` обрабатываются как обычный текст.
+      parameters:
+        - name: q
+          in: query
+          description: Строка поиска.
+          schema: { type: string, maxLength: 100 }
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница результатов.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GuestPage' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+    post:
+      tags: [guests]
+      operationId: createGuest
+      summary: Создать запись
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GuestInput' }
+      responses:
+        '201':
+          description: Запись создана.
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Guest' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '422': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+  /api/guests/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [guests]
+      operationId: getGuest
+      summary: Получить запись
+      responses:
+        '200':
+          description: Запись.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Guest' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+    put:
+      tags: [guests]
+      operationId: updateGuest
+      summary: Полностью заменить запись
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GuestInput' }
+      responses:
+        '200':
+          description: Запись обновлена.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Guest' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+        '422': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+    delete:
+      tags: [guests]
+      operationId: deleteGuest
+      summary: Удалить запись
+      responses:
+        '204':
+          description: Запись удалена.
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: 'common.yaml#/components/securitySchemes/bearerAuth'
+  schemas:
+    GuestInput:
+      type: object
+      required: [full_name, phone, room, check_in, check_out]
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 200 }
+        phone:
+          type: string
+          description: Принимается в свободном виде, хранится и возвращается в формате E.164.
+          examples: ['+79991234567']
+        room: { type: string, minLength: 1, maxLength: 20 }
+        check_in: { type: string, format: date }
+        check_out:
+          type: string
+          format: date
+          description: Не раньше `check_in`.
+        note: { type: string, maxLength: 2000, default: '' }
+    Guest:
+      allOf:
+        - $ref: '#/components/schemas/GuestInput'
+        - type: object
+          required: [id, note, created_by, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            note: { type: string }
+            created_by:
+              type: string
+              format: uuid
+              description: Пользователь, создавший запись.
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    GuestPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Guest' }
+        next_cursor:
+          type: [string, 'null']
+          description: Курсор следующей страницы, `null` если страница последняя.

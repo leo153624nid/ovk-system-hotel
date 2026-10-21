@@ -173,6 +173,8 @@ CREATE INDEX audit_entity_idx ON audit_log (entity_id, occurred_at DESC);
 
 ## 6. API (внешний контракт через gateway)
 
+Формальные контракты лежат в [api/](../api): `auth.yaml`, `hotel.yaml`, `audit.yaml` (OpenAPI 3.1), общие компоненты в `common.yaml`, схема событий в `api/events/guest-event.schema.json`. Gateway проксирует пути без переписывания, поэтому внешние и внутренние пути совпадают.
+
 Все ответы JSON. Ошибки в формате RFC 7807 (`application/problem+json`) с полями `type`, `title`, `status`, `detail`, `request_id` и для валидации массивом `errors[{field, message}]`.
 
 | Метод и путь | Доступ | Описание | Успех |

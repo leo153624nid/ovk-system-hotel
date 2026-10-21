@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: Auth API
+  version: 1.0.0
+  description: |
+    Регистрация, вход и обновление токенов. Доступен через gateway, пути не переписываются.
+
+    Access-токен живёт 15 минут и передаётся в заголовке Authorization.
+    Refresh-токен живёт 7 дней, лежит в HttpOnly cookie `refresh_token`
+    (`Path=/api/auth`, `SameSite=Strict`) и при каждом обмене ротируется.
+    Повторное предъявление уже использованного refresh-токена отзывает всю цепочку.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: auth
+paths:
+  /api/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Регистрация пользователя
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '201':
+          description: Пользователь создан.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '409':
+          description: Email уже зарегистрирован.
+          content:
+            application/problem+json:
+              schema: { $ref: 'common.yaml#/components/schemas/Problem' }
+        '422': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Вход
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '200': { $ref: '#/components/responses/Tokens' }
+        '400': { $ref: 'common.yaml#/components/responses/BadRequest' }
+        '401':
+          description: Неверный email или пароль (сообщение одинаковое в обоих случаях).
+          content:
+            application/problem+json:
+              schema: { $ref: 'common.yaml#/components/schemas/Problem' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+  /api/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      summary: Обмен refresh-токена на новую пару токенов
+      description: Тело запроса пустое, refresh-токен берётся из cookie.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RefreshCookie'
+      responses:
+        '200': { $ref: '#/components/responses/Tokens' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthorized' }
+        '429': { $ref: 'common.yaml#/components/responses/TooManyRequests' }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Выход, отзыв цепочки refresh-токенов
+      description: Идемпотентна, при отсутствии cookie тоже возвращает 204.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RefreshCookie'
+      responses:
+        '204':
+          description: Выход выполнен, cookie очищена.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+        '500': { $ref: 'common.yaml#/components/responses/InternalError' }
+
+components:
+  parameters:
+    RefreshCookie:
+      name: refresh_token
+      in: cookie
+      required: false
+      schema: { type: string }
+  schemas:
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: Не длиннее 72 байт, ограничение bcrypt.
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+    TokenPair:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, const: Bearer }
+        expires_in:
+          type: integer
+          description: Срок жизни access-токена в секундах.
+          examples: [900]
+  responses:
+    Tokens:
+      description: Access-токен в теле, refresh-токен в cookie.
+      headers:
+        Set-Cookie:
+          description: "`refresh_token=...; HttpOnly; SameSite=Strict; Path=/api/auth`"
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/TokenPair' }
