@@ -1,4 +1,4 @@
-package transport_test
+package transporthttp_test
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ import (
 	"ovk-system-hotel/pkg/jwtx"
 	"ovk-system-hotel/services/auth/internal/repository"
 	"ovk-system-hotel/services/auth/internal/service"
-	"ovk-system-hotel/services/auth/internal/transport"
+	transporthttp "ovk-system-hotel/services/auth/internal/transport/http"
 	"ovk-system-hotel/services/auth/migrations"
 )
 
@@ -93,7 +93,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 
-	srv := httptest.NewServer(transport.NewRouter(
+	srv := httptest.NewServer(transporthttp.NewRouter(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		svc,
 		repo,

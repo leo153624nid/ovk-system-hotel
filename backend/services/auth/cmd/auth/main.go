@@ -21,7 +21,7 @@ import (
 	"ovk-system-hotel/pkg/logx"
 	"ovk-system-hotel/services/auth/internal/repository"
 	"ovk-system-hotel/services/auth/internal/service"
-	"ovk-system-hotel/services/auth/internal/transport"
+	transporthttp "ovk-system-hotel/services/auth/internal/transport/http"
 	"ovk-system-hotel/services/auth/migrations"
 )
 
@@ -98,7 +98,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	}
 
 	secure := config.String("COOKIE_SECURE", "false") == "true"
-	router := transport.NewRouter(log, svc, repo, secure)
+	router := transporthttp.NewRouter(log, svc, repo, secure)
 
 	return httpx.Run(ctx, log, config.String("HTTP_ADDR", ":8081"), router)
 }

@@ -57,7 +57,7 @@ ovk-system-hotel/
 │   │   ├── config/               # env-конфиг
 │   │   └── natsx/                # обёртки публикации и подписки
 │   └── services/
-│       ├── auth/    {go.mod, cmd/auth, internal/{transport,service,repository,domain}, migrations, Dockerfile}
+│       ├── auth/    {go.mod, cmd/auth, internal/{transport/http,service,repository,domain}, migrations, Dockerfile}
 │       ├── hotel/   {то же + internal/outbox}
 │       ├── audit/   {то же + internal/consumer}
 │       └── gateway/ {go.mod, cmd/gateway, internal/{proxy,ratelimit}, Dockerfile}
@@ -72,7 +72,7 @@ ovk-system-hotel/
 └── README.md
 ```
 
-Слои внутри сервиса: `transport (HTTP/chi) → service (бизнес-логика) → repository (pgx)`. Интерфейсы объявляются на стороне потребителя, чтобы service-слой тестировался без БД.
+Слои внутри сервиса: `transport/http (package transporthttp, chi) → service (бизнес-логика) → repository (pgx)`. Интерфейсы объявляются на стороне потребителя, чтобы service-слой тестировался без БД.
 
 ## 4. Данные
 

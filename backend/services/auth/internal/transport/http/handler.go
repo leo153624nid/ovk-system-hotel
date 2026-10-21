@@ -1,5 +1,5 @@
-// Package transport содержит HTTP-слой сервиса auth.
-package transport
+// Package transporthttp содержит HTTP-слой сервиса auth.
+package transporthttp
 
 import (
 	"context"
