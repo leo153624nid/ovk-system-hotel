@@ -1,0 +1,9 @@
+go 1.27.1
+
+use (
+	./pkg
+	./services/auth
+	./services/hotel
+	./services/audit
+	./services/gateway
+)
