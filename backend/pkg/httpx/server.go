@@ -54,7 +54,7 @@ func Run(
 
 	log.Info("shutting down")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 
 	return srv.Shutdown(shutdownCtx)
