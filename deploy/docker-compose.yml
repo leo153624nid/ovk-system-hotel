@@ -1,4 +1,4 @@
-# Инфраструктура. Сервисы приложения добавляются по мере их готовности.
+# Инфраструктура и сервисы приложения. Новые сервисы добавляются по мере готовности.
 name: ovk-hotel
 
 services:
@@ -32,6 +32,44 @@ services:
       - natsdata:/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth-migrate:
+    build:
+      context: ../backend
+      dockerfile: services/auth/Dockerfile
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://auth:${AUTH_DB_PASSWORD}@postgres:5432/auth_db?sslmode=disable
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth:
+    build:
+      context: ../backend
+      dockerfile: services/auth/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://auth:${AUTH_DB_PASSWORD}@postgres:5432/auth_db?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-ovk-auth}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-168h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Временно открыт наружу, пока нет gateway. После его появления порт убираем.
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      auth-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/readyz"]
       interval: 5s
       timeout: 3s
       retries: 10

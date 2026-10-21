@@ -1,9 +1,10 @@
 COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
+MIGRATORS := auth-migrate
 GO_MODULES := pkg services/auth services/hotel services/audit services/gateway
 
 .DEFAULT_GOAL := help
 
-.PHONY: help env up down logs tidy build test test-unit lint fmt
+.PHONY: help env up down logs migrate tidy build test test-unit lint fmt
 
 help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -19,6 +20,10 @@ down: ## Остановить окружение (данные сохраняю�
 
 logs: ## Логи контейнеров
 	$(COMPOSE) logs -f
+
+migrate: env ## Применить миграции всех сервисов
+	$(COMPOSE) up -d --wait postgres
+	@for s in $(MIGRATORS); do $(COMPOSE) run --rm $$s || exit 1; done
 
 tidy: ## go mod tidy во всех модулях
 	@for m in $(GO_MODULES); do (cd backend/$$m && go mod tidy) || exit 1; done
