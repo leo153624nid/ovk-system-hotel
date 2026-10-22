@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ovk-hotel/events/guest-event.schema.json",
+  "title": "GuestEvent",
+  "description": "Событие об изменении записи гостя. Публикуется hotel через outbox в стрим GUESTS, subjects guest.created, guest.updated, guest.deleted. Заголовок Nats-Msg-Id равен event_id.",
+  "type": "object",
+  "required": ["event_id", "type", "occurred_at", "actor_id", "entity_id", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "type": { "enum": ["guest.created", "guest.updated", "guest.deleted"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "actor_id": { "type": "string", "format": "uuid", "description": "Пользователь из JWT, выполнивший действие." },
+    "entity_id": { "type": "string", "format": "uuid" },
+    "data": {
+      "type": "object",
+      "description": "Снимок записи гостя после изменения, для guest.deleted состояние перед удалением.",
+      "required": ["id", "full_name", "phone", "room", "check_in", "check_out", "note", "created_by", "created_at", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "full_name": { "type": "string" },
+        "phone": { "type": "string" },
+        "room": { "type": "string" },
+        "check_in": { "type": "string", "format": "date" },
+        "check_out": { "type": "string", "format": "date" },
+        "note": { "type": "string" },
+        "created_by": { "type": "string", "format": "uuid" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
