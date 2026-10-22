@@ -1,5 +1,5 @@
 COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
-MIGRATORS := auth-migrate hotel-migrate
+MIGRATORS := auth-migrate hotel-migrate audit-migrate
 GO_MODULES := pkg services/auth services/hotel services/audit services/gateway
 
 .DEFAULT_GOAL := help

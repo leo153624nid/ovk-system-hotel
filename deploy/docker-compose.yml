@@ -110,6 +110,43 @@ services:
       timeout: 3s
       retries: 10
 
+  audit-migrate:
+    build:
+      context: ../backend
+      args:
+        SERVICE: audit
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://audit:${AUDIT_DB_PASSWORD}@postgres:5432/audit_db?sslmode=disable
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  audit:
+    build:
+      context: ../backend
+      args:
+        SERVICE: audit
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://audit:${AUDIT_DB_PASSWORD}@postgres:5432/audit_db?sslmode=disable
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-ovk-auth}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      audit-migrate:
+        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   gateway:
     build:
       context: ../backend
@@ -136,6 +173,8 @@ services:
       auth:
         condition: service_healthy
       hotel:
+        condition: service_healthy
+      audit:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]

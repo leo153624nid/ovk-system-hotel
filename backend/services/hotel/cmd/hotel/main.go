@@ -10,11 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nats-io/nats.go/jetstream"
 
 	"ovk-system-hotel/pkg/config"
 	"ovk-system-hotel/pkg/dbx"
-	"ovk-system-hotel/pkg/events"
 	"ovk-system-hotel/pkg/httpx"
 	"ovk-system-hotel/pkg/jwtx"
 	"ovk-system-hotel/pkg/logx"
@@ -27,9 +25,8 @@ import (
 )
 
 const (
-	serviceName  = "hotel"
-	outboxBatch  = 100
-	streamMaxAge = 7 * 24 * time.Hour
+	serviceName = "hotel"
+	outboxBatch = 100
 )
 
 func main() {
@@ -91,11 +88,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	pub, err := natsx.NewPublisher(natsURL, jetstream.StreamConfig{
-		Name:     events.StreamGuests,
-		Subjects: []string{events.SubjectsGuests},
-		MaxAge:   streamMaxAge,
-	})
+	pub, err := natsx.NewPublisher(natsURL, natsx.GuestsStreamConfig())
 	if err != nil {
 		return err
 	}

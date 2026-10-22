@@ -161,7 +161,10 @@ CREATE TABLE audit_log (
   occurred_at timestamptz NOT NULL,
   recorded_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX audit_entity_idx ON audit_log (entity_id, occurred_at DESC);
+-- Общий журнал, новые первыми, ключ курсорной пагинации.
+CREATE INDEX audit_occurred_idx ON audit_log (occurred_at DESC, id DESC);
+-- История одной записи гостя.
+CREATE INDEX audit_entity_idx ON audit_log (entity_id, occurred_at DESC, id DESC);
 ```
 
 ## 5. Безопасность и токены
@@ -222,7 +225,8 @@ CREATE INDEX audit_entity_idx ON audit_log (entity_id, occurred_at DESC);
 1. hotel пишет изменение гостя и строку в `outbox` в одной транзакции.
 2. Relay (горутина в hotel) читает неопубликованные строки через `SELECT ... FOR UPDATE SKIP LOCKED`, публикует в JetStream с `Nats-Msg-Id = event_id` и ставит `published_at`.
 3. audit вычитывает durable-консьюмером с ручным ack. Дубликаты отбрасываются по `UNIQUE(event_id)` (`ON CONFLICT DO NOTHING`).
-4. Итого: доставка at-least-once, эффект exactly-once за счёт идемпотентности. Недоступность NATS не ломает запись гостей, события накапливаются в outbox.
+4. Потребитель audit: durable pull-консьюмер `audit` с явным подтверждением. Успех: Ack. Битое или некорректное сообщение (невалидный JSON, неизвестный тип, `subject` не равен `type`, нулевые идентификаторы): Term, повторов нет, ошибка в логе. Временная ошибка (например, недоступна БД): Nak с задержкой 5 секунд, сообщение будет доставлено снова. Стрим и консьюмер создаются с повторными попытками, поэтому audit стартует и при недоступном NATS; конфигурация стрима одна на обе стороны (`natsx.GuestsStreamConfig`).
+5. Итого: доставка at-least-once, эффект exactly-once за счёт идемпотентности. Недоступность NATS не ломает запись гостей, события накапливаются в outbox.
 
 ## 8. Конфигурация и запуск
 
