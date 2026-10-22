@@ -51,13 +51,16 @@ ovk-system-hotel/
 ├── backend/
 │   ├── go.work
 │   ├── pkg/                      # отдельный go.mod, только инфраструктурный код
+│   │   ├── dbx/                  # применение миграций goose
+│   │   ├── events/               # контракт событий
 │   │   ├── jwtx/                 # подпись и проверка токена за интерфейсом
 │   │   ├── httpx/                # middleware, RFC 7807, request-id, recover
 │   │   ├── logx/                 # slog-конфигурация
 │   │   ├── config/               # env-конфиг
 │   │   └── natsx/                # обёртки публикации и подписки
+│   ├── Dockerfile                # общий, сервис выбирается через --build-arg SERVICE=<имя>
 │   └── services/
-│       ├── auth/    {go.mod, cmd/auth, internal/{transport/http,service,repository,domain}, migrations, Dockerfile}
+│       ├── auth/    {go.mod, cmd/auth, internal/{transport/http,service,repository,domain}, migrations}
 │       ├── hotel/   {то же + internal/outbox}
 │       ├── audit/   {то же + internal/consumer}
 │       └── gateway/ {go.mod, cmd/gateway, internal/{proxy,ratelimit}, Dockerfile}

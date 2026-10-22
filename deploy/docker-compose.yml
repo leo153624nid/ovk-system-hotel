@@ -39,7 +39,8 @@ services:
   auth-migrate:
     build:
       context: ../backend
-      dockerfile: services/auth/Dockerfile
+      args:
+        SERVICE: auth
     command: ["migrate"]
     restart: "no"
     environment:
@@ -52,7 +53,8 @@ services:
   auth:
     build:
       context: ../backend
-      dockerfile: services/auth/Dockerfile
+      args:
+        SERVICE: auth
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://auth:${AUTH_DB_PASSWORD}@postgres:5432/auth_db?sslmode=disable
@@ -70,6 +72,46 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  hotel-migrate:
+    build:
+      context: ../backend
+      args:
+        SERVICE: hotel
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://hotel:${HOTEL_DB_PASSWORD}@postgres:5432/hotel_db?sslmode=disable
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  hotel:
+    build:
+      context: ../backend
+      args:
+        SERVICE: hotel
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://hotel:${HOTEL_DB_PASSWORD}@postgres:5432/hotel_db?sslmode=disable
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-ovk-auth}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Временно открыт наружу, пока нет gateway. После его появления порт убираем.
+    ports:
+      - "127.0.0.1:8082:8082"
+    depends_on:
+      hotel-migrate:
+        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/readyz"]
       interval: 5s
       timeout: 3s
       retries: 10

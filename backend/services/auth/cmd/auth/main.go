@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,10 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // драйвер "pgx" для database/sql (миграции)
-	"github.com/pressly/goose/v3"
 
 	"ovk-system-hotel/pkg/config"
+	"ovk-system-hotel/pkg/dbx"
 	"ovk-system-hotel/pkg/httpx"
 	"ovk-system-hotel/pkg/jwtx"
 	"ovk-system-hotel/pkg/logx"
@@ -108,27 +105,5 @@ func migrate(ctx context.Context, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-
-	db, err := sql.Open("pgx", dbURL)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = db.Close() }()
-
-	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrations.FS)
-	if err != nil {
-		return err
-	}
-
-	results, err := provider.Up(ctx)
-	if err != nil && !errors.Is(err, goose.ErrNoMigrations) {
-		return err
-	}
-
-	for _, r := range results {
-		log.Info("migration applied", "version", r.Source.Version, "duration", r.Duration.String())
-	}
-	log.Info("migrations up to date")
-
-	return nil
+	return dbx.Migrate(ctx, log, dbURL, migrations.FS)
 }
