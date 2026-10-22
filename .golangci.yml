@@ -24,6 +24,11 @@ linters:
           disabled: true
   exclusions:
     rules:
+      # Ложное срабатывание: колбэки httputil.ReverseProxy работают с контекстом каждого запроса,
+      # а не с контекстом запуска, который есть в run().
+      - path: services/gateway/cmd/gateway/main\.go
+        linters:
+          - contextcheck
       - path: _test\.go
         linters:
           - gosec

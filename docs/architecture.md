@@ -171,7 +171,10 @@ CREATE INDEX audit_entity_idx ON audit_log (entity_id, occurred_at DESC);
 - Refresh: непрозрачная случайная строка 32 байта, срок 7 дней, в БД хранится sha256. Передаётся в `HttpOnly; SameSite=Strict` cookie с `Path=/api/auth`.
 - Проверка: gateway проверяет подпись и срок, затем добавляет заголовок `X-User-ID`. hotel и audit **повторно проверяют** JWT сами (defense in depth) и не доверяют заголовку.
 - Общий секрет HS256 есть у auth (подпись), gateway, hotel, audit (проверка). Пакет `pkg/jwtx` скрывает алгоритм за интерфейсами `Signer` и `Verifier`, поэтому переход на EdDSA и JWKS потребует правок только в нём и конфиге.
-- Rate limit на gateway: строгий на `/api/auth/login` и `/register` (защита от перебора), мягкий на остальное.
+- Rate limit на gateway (in-memory, на экземпляр, ключ — IP клиента): общий 20 запросов в секунду с burst 40 и отдельный строгий на `/api/auth/login` и `/register` 10 в минуту с burst 5. Ответ 429 с заголовком `Retry-After`. Health-маршруты не лимитируются. Значения задаются через env.
+- IP клиента: берётся адрес TCP-соединения. Заголовку `X-Real-IP` верим, только если соединение пришло из сети из `TRUSTED_PROXIES`, иначе клиент мог бы подменить заголовок и обойти лимит.
+- Gateway всегда удаляет присланный клиентом `X-User-ID` и выставляет его сам по проверенному токену. Заголовок `Authorization` передаётся дальше без изменений, поэтому сервисы проверяют токен независимо.
+- CORS: разрешены только origins из `CORS_ALLOWED_ORIGINS` (с `credentials`, поэтому не `*`). Preflight отвечает сам gateway. При раздаче фронтенда с того же origin через nginx CORS не нужен.
 - Ответ 401 на любой запрос к защищённому маршруту без валидного токена. Публичные маршруты: register, login, refresh, healthz.
 
 ## 6. API (внешний контракт через gateway)
